@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">BQLiveApp</string>
+    <string name="send_gift">发送礼物</string>
+    <string name="view_gift">观看礼物</string>
+    <string name="delete_zip">删除包</string>
+    <string name="downloaded">已下载</string>
+    <string name="not_downloaded">未下载</string>
+    <string name="starting_download">开始下载</string>
+    <string name="completing_download">下载完毕</string>
+    <string name="has_update">待升级</string>
+    <string name="starting_update">开始升级</string>
+    <string name="completing_update">升级完毕</string>
+    <string name="explanation">选择一个未下载的包，可以下载它。选择一个已下载的包，可以进入播放和删除页面。</string>
+</resources>
