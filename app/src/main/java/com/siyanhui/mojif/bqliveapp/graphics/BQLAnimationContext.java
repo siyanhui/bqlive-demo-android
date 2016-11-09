@@ -23,6 +23,8 @@ public class BQLAnimationContext {
      */
     private BQLive.FrameConfig[] mHostAvatarAnimationFrames;
     private BQLive.FrameConfig[] mSenderAvatarAnimationFrames;
+    private BQLive.SpriteConfig mHostAvatarConfig;
+    private BQLive.SpriteConfig mSenderAvatarConfig;
     /**
      * 这里存储头像Bitmap的宽高信息
      */
@@ -52,9 +54,11 @@ public class BQLAnimationContext {
     /**
      * 除子动画之外，所有参数的传入都在构造函数里完成
      */
-    public BQLAnimationContext(BQLive.FrameConfig[] hostAvatarAnimationFrames, BQLive.FrameConfig[] senderAvatarAnimationFrames, BQLive.FrameConfig[] hostNickNameFrames, BQLive.FrameConfig[] senderNickNameFrames, Bitmap hostAvatar, Bitmap senderAvatar, TextPaint hostNickNamePaint, TextPaint senderNickNamePaint, String hostNickName, String senderNickName, BQLive.NicknameConfig hostNickNameConfig, BQLive.NicknameConfig senderNickNameConfig) {
+    public BQLAnimationContext(BQLive.FrameConfig[] hostAvatarAnimationFrames, BQLive.FrameConfig[] senderAvatarAnimationFrames, BQLive.SpriteConfig hostAvatarConfig, BQLive.SpriteConfig senderAvatarConfig, BQLive.FrameConfig[] hostNickNameFrames, BQLive.FrameConfig[] senderNickNameFrames, Bitmap hostAvatar, Bitmap senderAvatar, TextPaint hostNickNamePaint, TextPaint senderNickNamePaint, String hostNickName, String senderNickName, BQLive.NicknameConfig hostNickNameConfig, BQLive.NicknameConfig senderNickNameConfig) {
         mHostAvatarAnimationFrames = hostAvatarAnimationFrames;
         mSenderAvatarAnimationFrames = senderAvatarAnimationFrames;
+        mHostAvatarConfig = hostAvatarConfig;
+        mSenderAvatarConfig = senderAvatarConfig;
         mHostNickNameFrames = hostNickNameFrames;
         mSenderNickNameFrames = senderNickNameFrames;
         if (hostAvatar != null) {
@@ -183,5 +187,13 @@ public class BQLAnimationContext {
 
     public BQLive.SubAnimationConfig getSubAnimationConfig(String name) {
         return mSubAnimations.get(name);
+    }
+
+    int getHostAvatarBorderWidth() {
+        return mHostAvatarConfig.getBorderWidth();
+    }
+
+    int getSenderAvatarBorderWidth() {
+        return mSenderAvatarConfig.getBorderWidth();
     }
 }

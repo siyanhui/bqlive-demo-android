@@ -76,7 +76,7 @@ public class BQLPngSequencePlayer {
                             }
                         }
                         //显示图片
-                        imageView.setFrame(task.mBitmap, task.mAlphaBitmap, task.hostAvatarMatrix, task.hostAvatarAlpha, task.senderAvatarMatrix, task.senderAvatarAlpha, task.hostNickNameMatrix, task.hostNickNameAlpha, task.senderNickNameMatrix, task.senderNickNameAlpha, task.hostNickNameHeight, task.senderNickNameHeight, task.subAnimationMatrices);
+                        imageView.setFrame(task.mBitmap, task.mAlphaBitmap, task.hostAvatarOuterMatrix, task.hostAvatarInnerMatrix, task.hostAvatarBorderRect, task.hostAvatarRect, task.senderAvatarOuterMatrix, task.senderAvatarInnerMatrix, task.senderAvatarBorderRect, task.senderAvatarRect, task.hostAvatarAlpha, task.senderAvatarAlpha, task.hostNickNameMatrix, task.hostNickNameAlpha, task.senderNickNameMatrix, task.senderNickNameAlpha, task.hostNickNameHeight, task.senderNickNameHeight, task.subAnimationMatrices);
                         scheduleNewFrames(imageView);
                         break;
                     case SKIP_FRAME:
@@ -137,9 +137,7 @@ public class BQLPngSequencePlayer {
      * 虽然名字叫做“解码任务”，但它的功能实际上包括解码和计算矩阵两部分
      */
     private static class DecodeTask implements Runnable {
-        Matrix hostAvatarMatrix;
         int hostAvatarAlpha;
-        Matrix senderAvatarMatrix;
         int senderAvatarAlpha;
         Matrix hostNickNameMatrix;
         int hostNickNameAlpha;
@@ -148,6 +146,14 @@ public class BQLPngSequencePlayer {
         float hostNickNameHeight;
         float senderNickNameHeight;
         Map<String, Matrix> subAnimationMatrices;
+        private Matrix hostAvatarOuterMatrix;
+        private Matrix hostAvatarInnerMatrix;
+        private RectF hostAvatarBorderRect;
+        private RectF hostAvatarRect;
+        private Matrix senderAvatarOuterMatrix;
+        private Matrix senderAvatarInnerMatrix;
+        private RectF senderAvatarBorderRect;
+        private RectF senderAvatarRect;
         /**
          * 以下几个变量用于存储解码和计算结果
          */
@@ -246,11 +252,27 @@ public class BQLPngSequencePlayer {
                     if (mContext != null) {//进行矩阵的计算
                         BQLive.FrameConfig hostAvatarAnimationFrame = mContext.getHostAvatarAnimationFrame(mFrameNumber);
                         if (hostAvatarAnimationFrame != null && (hostAvatarAlpha = (int) (hostAvatarAnimationFrame.getAlpha() * 255)) != 0) {
-                            hostAvatarMatrix = calculateMatrix(mContext.getHostAvatarWidth(), mContext.getHostAvatarHeight(), hostAvatarAnimationFrame.getWidth(), hostAvatarAnimationFrame.getHeight(), hostAvatarAnimationFrame.getX(), hostAvatarAnimationFrame.getY(), hostAvatarAnimationFrame.getScale(), hostAvatarAnimationFrame.getRotate(), 1);
+                            float avatarFrameWidth = hostAvatarAnimationFrame.getWidth();
+                            float avatarFrameHeight = hostAvatarAnimationFrame.getHeight();
+                            hostAvatarOuterMatrix = calculateMatrix(avatarFrameWidth, avatarFrameHeight, avatarFrameWidth, avatarFrameHeight, hostAvatarAnimationFrame.getX(), hostAvatarAnimationFrame.getY(), hostAvatarAnimationFrame.getScale(), hostAvatarAnimationFrame.getRotate(), 1);
+                            hostAvatarInnerMatrix = new Matrix();
+                            float scale = scaleToFit(mContext.getHostAvatarWidth(), mContext.getHostAvatarHeight(), avatarFrameWidth, avatarFrameHeight);
+                            hostAvatarInnerMatrix.setScale(scale, scale);
+                            int borderWidth = mContext.getHostAvatarBorderWidth();
+                            hostAvatarBorderRect = new RectF(-borderWidth / 2f, -borderWidth / 2f, avatarFrameWidth + borderWidth / 2f, avatarFrameHeight + borderWidth / 2f);
+                            hostAvatarRect = new RectF(0, 0, avatarFrameWidth, avatarFrameHeight);
                         }
                         BQLive.FrameConfig senderAvatarAnimationFrame = mContext.getSenderAvatarAnimationFrame(mFrameNumber);
                         if (senderAvatarAnimationFrame != null && (senderAvatarAlpha = (int) (senderAvatarAnimationFrame.getAlpha() * 255)) != 0) {
-                            senderAvatarMatrix = calculateMatrix(mContext.getSenderAvatarWidth(), mContext.getSenderAvatarHeight(), senderAvatarAnimationFrame.getWidth(), senderAvatarAnimationFrame.getHeight(), senderAvatarAnimationFrame.getX(), senderAvatarAnimationFrame.getY(), senderAvatarAnimationFrame.getScale(), senderAvatarAnimationFrame.getRotate(), 1);
+                            float avatarFrameWidth = senderAvatarAnimationFrame.getWidth();
+                            float avatarFrameHeight = senderAvatarAnimationFrame.getHeight();
+                            senderAvatarOuterMatrix = calculateMatrix(avatarFrameWidth, avatarFrameHeight, avatarFrameWidth, avatarFrameHeight, senderAvatarAnimationFrame.getX(), senderAvatarAnimationFrame.getY(), senderAvatarAnimationFrame.getScale(), senderAvatarAnimationFrame.getRotate(), 1);
+                            senderAvatarInnerMatrix = new Matrix();
+                            float scale = scaleToFit(mContext.getSenderAvatarWidth(), mContext.getSenderAvatarHeight(), avatarFrameWidth, avatarFrameHeight);
+                            senderAvatarInnerMatrix.setScale(scale, scale);
+                            int borderWidth = mContext.getSenderAvatarBorderWidth();
+                            senderAvatarBorderRect = new RectF(-borderWidth / 2f, -borderWidth / 2f, avatarFrameWidth + borderWidth / 2f, avatarFrameHeight + borderWidth / 2f);
+                            senderAvatarRect = new RectF(0, 0, avatarFrameWidth, avatarFrameHeight);
                         }
                         RectF rectF = new RectF();
                         BQLive.FrameConfig hostNickNameFrame = mContext.prepareHostNickName(mFrameNumber, rectF);
