@@ -301,16 +301,17 @@ public class BQLCameraPreview extends SurfaceView implements SurfaceHolder.Callb
     }
 
     public void changeFacing() {
-        mCamera.setPreviewCallback(null);
-        mCamera.stopPreview();
-        mCamera.release();
-        mCamera = null;
-        if (mCurrentCameraFacing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-            openCamera(Camera.CameraInfo.CAMERA_FACING_BACK, getHolder());
-        } else {
-            openCamera(Camera.CameraInfo.CAMERA_FACING_FRONT, getHolder());
+        if (mCamera != null) {
+            mCamera.setPreviewCallback(null);
+            mCamera.stopPreview();
+            mCamera.release();
+            mCamera = null;
+            if (mCurrentCameraFacing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                openCamera(Camera.CameraInfo.CAMERA_FACING_BACK, getHolder());
+            } else {
+                openCamera(Camera.CameraInfo.CAMERA_FACING_FRONT, getHolder());
+            }
         }
-
     }
 
     public void retryOpenCamera() {

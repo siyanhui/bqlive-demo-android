@@ -6,8 +6,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
@@ -46,7 +44,6 @@ public class BQLAnimationView extends View {
     private Paint mSenderAvatarBorderPaint = new Paint();
     private BQLAnimationContext mAnimationContext;
     private Bitmap mBitmap;
-    private Bitmap mAlphaBitmap;
     private int mHostAvatarAlpha;
     private int mSenderAvatarAlpha;
     private Matrix mHostNickNameMatrix;
@@ -156,16 +153,6 @@ public class BQLAnimationView extends View {
     }
 
     private void init() {
-        /**
-         * 以下两个Paint需要配合使用。为了节省空间，动画中的每一帧主图都被存贮为了颜色通道和透明度通道两张图片，需要用这两个Paint分别绘制。
-         */
-        mFramePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));//颜色通道在透明度通道之后绘制，这个设置可以在绘制时保留像素的透明度。
-        mFrameAlphaPaint.setColorFilter(new ColorMatrixColorFilter(new ColorMatrix(new float[]{
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-                1, 0, 0, 0, 0})));//透明度通道是一张黑白图片，这个矩阵可以把图片上每一个像素的亮度转变为透明度。
-
         mHostAvatarPaint.setAntiAlias(true);
         mHostAvatarBorderPaint.setAntiAlias(true);
         mHostAvatarBorderPaint.setStyle(Paint.Style.STROKE);
@@ -318,7 +305,7 @@ public class BQLAnimationView extends View {
             colorFiles[i] = animationDirectory + File.separator + String.valueOf(i) + "-a.jpg";
             alphaFiles[i] = animationDirectory + File.separator + String.valueOf(i) + "-b.jpg";
         }
-        new BQLPngSequencePlayer(colorFiles, alphaFiles, config.getFrameIndices(), this, config.getType() == 0 ? 80 : 10000).start();
+        new BQLPngSequencePlayer(colorFiles, alphaFiles, config.getFrameIndices(), this, config.getType() == 0 ? 1000 / config.getFps() : 10000).start();
     }
 
     /**
@@ -357,9 +344,8 @@ public class BQLAnimationView extends View {
     /**
      * 给BQLPngSequencePlayer调用的函数，设置待显示的数据
      */
-    public void setFrame(Bitmap bitmap, Bitmap alphaBitmap, Matrix hostAvatarOuterMatrix, Matrix hostAvatarInnerMatrix, RectF hostAvatarBorderRect, RectF hostAvatarRect, Matrix senderAvatarOuterMatrix, Matrix senderAvatarInnerMatrix, RectF senderAvatarBorderRect, RectF senderAvatarRect, int hostAvatarAlpha, int senderAvatarAlpha, Matrix hostNickNameMatrix, int hostNickNameAlpha, Matrix senderNickNameMatrix, int senderNickNameAlpha, float hostNickNameHeight, float senderNickNameHeight, Map<String, Matrix> matrices) {
+    public void setFrame(Bitmap bitmap, Matrix hostAvatarOuterMatrix, Matrix hostAvatarInnerMatrix, RectF hostAvatarBorderRect, RectF hostAvatarRect, Matrix senderAvatarOuterMatrix, Matrix senderAvatarInnerMatrix, RectF senderAvatarBorderRect, RectF senderAvatarRect, int hostAvatarAlpha, int senderAvatarAlpha, Matrix hostNickNameMatrix, int hostNickNameAlpha, Matrix senderNickNameMatrix, int senderNickNameAlpha, float hostNickNameHeight, float senderNickNameHeight, Map<String, Matrix> matrices) {
         mBitmap = bitmap;
-        mAlphaBitmap = alphaBitmap;
         mHostAvatarOuterMatrix = hostAvatarOuterMatrix;
         mHostAvatarInnerMatrix = hostAvatarInnerMatrix;
         mHostAvatarBorderRect = hostAvatarBorderRect;
@@ -444,12 +430,7 @@ public class BQLAnimationView extends View {
             } else {
                 canvas.translate((viewWidth - drawableWidth) / 2, (viewHeight - drawableHeight) / 2);
             }
-            //绘制主图时，首先画上透明度通道，然后画上颜色通道
-            if (mAlphaBitmap != null) {
-                canvas.drawBitmap(mAlphaBitmap, 0, 0, mFrameAlphaPaint);
-            }
             canvas.drawBitmap(mBitmap, 0, 0, mFramePaint);
-            mFramePaint.setAntiAlias(true);
 
             //绘制头像、昵称及子图
             if (mHostAvatarConfig != null) {
