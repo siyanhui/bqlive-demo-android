@@ -2,7 +2,13 @@ package com.siyanhui.mojif.bqliveapp.graphics;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -38,6 +44,8 @@ public class BQLPngSequencePlayer {
     private long mLastFrameShowTime = 0;
     private int mFrameStep = 1;
     private Handler mHandler;
+    private Paint mFramePaint = new Paint();
+    private Paint mFrameAlphaPaint = new Paint();
 
     /**
      * @param colorFiles    颜色通道文件列表，必须和alphaFiles一一对应
@@ -56,6 +64,15 @@ public class BQLPngSequencePlayer {
         if (!backgroundThread.isAlive()) {
             backgroundThread.start();
         }
+        /**
+         * 以下两个Paint需要配合使用。为了节省空间，动画中的每一帧主图都被存贮为了颜色通道和透明度通道两张图片，需要用这两个Paint分别绘制。
+         */
+        mFramePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));//颜色通道在透明度通道之后绘制，这个设置可以在绘制时保留像素的透明度。
+        mFrameAlphaPaint.setColorFilter(new ColorMatrixColorFilter(new ColorMatrix(new float[]{
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                1, 0, 0, 0, 0})));//透明度通道是一张黑白图片，这个矩阵可以把图片上每一个像素的亮度转变为透明度。
         mHandler = new Handler(backgroundThread.getLooper()) {
             @Override
             public void handleMessage(Message msg) {
@@ -76,7 +93,7 @@ public class BQLPngSequencePlayer {
                             }
                         }
                         //显示图片
-                        imageView.setFrame(task.mBitmap, task.mAlphaBitmap, task.hostAvatarOuterMatrix, task.hostAvatarInnerMatrix, task.hostAvatarBorderRect, task.hostAvatarRect, task.senderAvatarOuterMatrix, task.senderAvatarInnerMatrix, task.senderAvatarBorderRect, task.senderAvatarRect, task.hostAvatarAlpha, task.senderAvatarAlpha, task.hostNickNameMatrix, task.hostNickNameAlpha, task.senderNickNameMatrix, task.senderNickNameAlpha, task.hostNickNameHeight, task.senderNickNameHeight, task.subAnimationMatrices);
+                        imageView.setFrame(task.mBitmap, task.hostAvatarOuterMatrix, task.hostAvatarInnerMatrix, task.hostAvatarBorderRect, task.hostAvatarRect, task.senderAvatarOuterMatrix, task.senderAvatarInnerMatrix, task.senderAvatarBorderRect, task.senderAvatarRect, task.hostAvatarAlpha, task.senderAvatarAlpha, task.hostNickNameMatrix, task.hostNickNameAlpha, task.senderNickNameMatrix, task.senderNickNameAlpha, task.hostNickNameHeight, task.senderNickNameHeight, task.subAnimationMatrices);
                         scheduleNewFrames(imageView);
                         break;
                     case SKIP_FRAME:
@@ -111,7 +128,7 @@ public class BQLPngSequencePlayer {
             mLastFrameShowTime += mFrameDuration * mFrameStep;
             if (mCurrentFrame >= mFrameCount) break;
             int frameToDecode = mFrameIndices == null ? mCurrentFrame : mFrameIndices[mCurrentFrame];
-            decodeExecutor.execute(new DecodeTask(mColorFiles[frameToDecode], mAlphaFiles[frameToDecode], mLastFrameShowTime, mCurrentFrame, view.getAnimationContext(), mHandler));
+            decodeExecutor.execute(new DecodeTask(mColorFiles[frameToDecode], mAlphaFiles[frameToDecode], mLastFrameShowTime, mCurrentFrame, mFramePaint, mFrameAlphaPaint, view.getAnimationContext(), mHandler));
             mCurrentFrame += mFrameStep;
             ++mBufferDepth;
         }
@@ -128,7 +145,7 @@ public class BQLPngSequencePlayer {
         BQLAnimationView imageView = mTarget.get();
         if (imageView != null && ++mBufferDepth <= mMaxBufferDepth && mCurrentFrame < mFrameCount) {
             int frameToDecode = mFrameIndices == null ? mCurrentFrame : mFrameIndices[mCurrentFrame];
-            decodeExecutor.execute(new DecodeTask(mColorFiles[frameToDecode], mAlphaFiles[frameToDecode], 0, 0, imageView.getAnimationContext(), mHandler));
+            decodeExecutor.execute(new DecodeTask(mColorFiles[frameToDecode], mAlphaFiles[frameToDecode], 0, 0, mFramePaint, mFrameAlphaPaint, imageView.getAnimationContext(), mHandler));
             mCurrentFrame += mFrameStep;
         }
     }
@@ -158,7 +175,6 @@ public class BQLPngSequencePlayer {
          * 以下几个变量用于存储解码和计算结果
          */
         private Bitmap mBitmap;
-        private Bitmap mAlphaBitmap;
         /**
          * 以下是解码与计算需要用到的数据
          */
@@ -169,13 +185,18 @@ public class BQLPngSequencePlayer {
         private Handler mHandler;
         private BQLAnimationContext mContext;
 
-        public DecodeTask(String jpegPath, String alphaPath, long showTime, int frameNumber, BQLAnimationContext config, Handler handler) {
+        private Paint mFramePaint;
+        private Paint mFrameAlphaPaint;
+
+        DecodeTask(String jpegPath, String alphaPath, long showTime, int frameNumber, Paint framePaint, Paint frameAlphaPaint, BQLAnimationContext config, Handler handler) {
             mPath = jpegPath;
             mAlphaPath = alphaPath;
             mShowTime = showTime;
             mFrameNumber = frameNumber;
             mHandler = handler;
             mContext = config;
+            mFramePaint = framePaint;
+            mFrameAlphaPaint = frameAlphaPaint;
         }
 
         /**
@@ -244,9 +265,14 @@ public class BQLPngSequencePlayer {
 
         @Override
         public void run() {
-            mBitmap = BitmapFactory.decodeFile(mPath);//解码颜色通道
-            mAlphaBitmap = BitmapFactory.decodeFile(mAlphaPath);//解码透明度通道
-            if (mBitmap != null && mAlphaBitmap != null) {
+            Bitmap bitmap = BitmapFactory.decodeFile(mPath);//解码颜色通道
+            Bitmap alphaBitmap = BitmapFactory.decodeFile(mAlphaPath);//解码透明度通道
+            if (bitmap != null && alphaBitmap != null) {
+                mBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(mBitmap);
+                //绘制主图时，首先画上透明度通道，然后画上颜色通道
+                canvas.drawBitmap(alphaBitmap, 0, 0, mFrameAlphaPaint);
+                canvas.drawBitmap(bitmap, 0, 0, mFramePaint);
                 long time = System.currentTimeMillis();
                 if (time <= mShowTime || mShowTime == 0) {//看一下时间，如果超时了的话，直接结束本任务
                     if (mContext != null) {//进行矩阵的计算
